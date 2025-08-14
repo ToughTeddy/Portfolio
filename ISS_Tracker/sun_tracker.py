@@ -1,5 +1,5 @@
 import requests as r
-import my_position as me
+import my_info as me
 import datetime as dt
 
 

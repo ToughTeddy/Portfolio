@@ -1,5 +1,5 @@
 import requests as r
-import my_position as me
+import my_info as me
 
 
 def iss_position():
@@ -10,7 +10,7 @@ def iss_position():
 
         iss_latitude = float(data["iss_position"]["latitude"])
         iss_longitude = float(data["iss_position"]["longitude"])
-        
+
     except:
         iss_latitude = 0
         iss_longitude = 0
