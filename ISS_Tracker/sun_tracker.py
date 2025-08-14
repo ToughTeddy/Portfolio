@@ -25,8 +25,26 @@ def sunrise_sunset():
 
         return dt.time(sunrise_hour, sunrise_minute), dt.time(sunset_hour, sunset_minute)
 
+    except r.Timeout:
+        print("Error: ISS API request timed out.")
+        return dt.time(0, 0), dt.time(0, 0)
+
+    except r.HTTPError as e:
+        code = e.response.status_code if e.response is not None else "unknown"
+        print(f"Error: ISS API HTTP {code}.")
+        return dt.time(0, 0), dt.time(0, 0)
+
+    except r.ConnectionError as e:
+        print(f"Error: connection error: {e}")
+        return dt.time(0, 0), dt.time(0, 0)
+
+    except r.RequestException as e:
+        print(f"Error: request failed: {e}")
+        return dt.time(0, 0), dt.time(0, 0)
+
+
     except Exception as e:
-        print(f"Error fetching sunrise/sunset data: {e}")
+        print(f"Unknown exception: {e}")
         return dt.time(0, 0), dt.time(0, 0)
 
 # print(sunrise_sunset())

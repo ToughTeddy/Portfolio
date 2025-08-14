@@ -11,11 +11,28 @@ def iss_position():
         iss_latitude = float(data["iss_position"]["latitude"])
         iss_longitude = float(data["iss_position"]["longitude"])
 
-    except:
-        iss_latitude = 0
-        iss_longitude = 0
+        return iss_latitude, iss_longitude
 
-    return iss_latitude, iss_longitude
+    except r.Timeout:
+        print("Error: ISS API request timed out.")
+        return 0.0, 0.0
+
+    except r.HTTPError as e:
+        code = e.response.status_code if e.response is not None else "unknown"
+        print(f"Error: ISS API HTTP {code}.")
+        return 0.0, 0.0
+
+    except r.ConnectionError as e:
+        print(f"Error: connection error: {e}")
+        return 0.0, 0.0
+
+    except r.RequestException as e:
+        print(f"Error: request failed: {e}")
+        return 0.0, 0.0
+
+    except Exception as e:
+        print(f"Unknown exception: {e}")
+        return 0.0, 0.0
 
 # print(iss_position())
 
