@@ -23,7 +23,7 @@ website_entry = Entry(width=32)
 website_entry.focus()
 website_entry.grid(column=1, row=1, sticky=E)
 
-web_search = Button(width=14, text="Search", command=b.info_search)
+web_search = Button(width=14, text="Search", command=lambda: b.info_search(tree, website_entry))
 web_search.grid(column=2, row=1)
 
 email = Label(text="Email/Username:")
@@ -39,10 +39,10 @@ password.grid(column=0, row=3)
 password_entry = Entry(width=32)
 password_entry.grid(column=1, row=3, sticky=E)
 
-generator = Button(width=14, text="Generate Password", command=b.generate_pw)
+generator = Button(width=14, text="Generate Password", command=lambda: b.generate_pw(password_entry))
 generator.grid(column=2, row=3)
 
-add = Button(width=41, text="Add", command=b.save)
+add = Button(width=41, text="Add", command=lambda: b.save(tree, website_entry, email_entry, password_entry))
 add.grid(column=1, row=4, columnspan=2)
 
 
