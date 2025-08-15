@@ -1,0 +1,232 @@
+[
+    {
+        "question": "How do you import the math module?",
+        "answer": "C. import math",
+        "choices": [
+            "A. include math",
+            "B. using math",
+            "C. import math",
+            "D. load math"
+        ]
+    },
+    {
+        "question": "How is memory managed in Python?",
+        "answer": "Using reference counting and garbage collection."
+    },
+    {
+        "question": "What is the purpose of `__init__.py`?",
+        "answer": "To mark a directory as a Python package."
+    },
+    {
+        "question": "What are *args and **kwargs used for?",
+        "answer": "*args handles variable positional args; **kwargs handles variable keyword args."
+    },
+    {
+        "question": "Which method returns the index of an item in a list?",
+        "answer": "D. index()",
+        "choices": [
+            "A. find()",
+            "B. search()",
+            "C. locate()",
+            "D. index()"
+        ]
+    },
+    {
+        "question": "What is a lambda function?",
+        "answer": "A small anonymous function defined with the lambda keyword."
+    },
+    {
+        "question": "What is the purpose of `__str__` and `__repr__`?",
+        "answer": "To define string representations for objects."
+    },
+    {
+        "question": "Which keyword is used to create a function in Python?",
+        "answer": "B. def",
+        "choices": [
+            "A. func",
+            "B. def",
+            "C. define",
+            "D. function"
+        ]
+    },
+    {
+        "question": "How do you install packages in Python?",
+        "answer": "Using `pip install package-name`."
+    },
+    {
+        "question": "What does `pass` do in Python?",
+        "answer": "Acts as a placeholder for future code."
+    },
+    {
+        "question": "Which of the following can be a dictionary key?",
+        "answer": "C. int",
+        "choices": [
+            "A. list",
+            "B. dict",
+            "C. int",
+            "D. set"
+        ]
+    },
+    {
+        "question": "What is a Python generator?",
+        "answer": "A function that returns an iterator using the `yield` keyword."
+    },
+    {
+        "question": "What is the difference between a list and a tuple in Python?",
+        "answer": "Lists are mutable, tuples are immutable."
+    },
+    {
+        "question": "What does len('Python') return?",
+        "answer": "B. 6",
+        "choices": [
+            "A. 5",
+            "B. 6",
+            "C. 7",
+            "D. Error"
+        ]
+    },
+    {
+        "question": "Which of these is used for comments?",
+        "answer": "B. #",
+        "choices": [
+            "A. //",
+            "B. #",
+            "C. /*",
+            "D. --"
+        ]
+    },
+    {
+        "question": "Explain Python decorators.",
+        "answer": "Decorators modify the behavior of functions or methods without changing their code."
+    },
+    {
+        "question": "How do you handle exceptions?",
+        "answer": "Using try-except blocks."
+    },
+    {
+        "question": "What will (3 * 'abc') output?",
+        "answer": "B. abcabcabc",
+        "choices": [
+            "A. abc3",
+            "B. abcabcabc",
+            "C. Error",
+            "D. abc abc abc"
+        ]
+    },
+    {
+        "question": "Which of the following is a loop in Python?",
+        "answer": "D. for",
+        "choices": [
+            "A. loop",
+            "B. iterate",
+            "C. foreach",
+            "D. for"
+        ]
+    },
+    {
+        "question": "Explain the use of the `with` statement.",
+        "answer": "Manages resources like files or locks using context managers."
+    },
+    {
+        "question": "Which is an immutable data type?",
+        "answer": "D. tuple",
+        "choices": [
+            "A. list",
+            "B. set",
+            "C. dict",
+            "D. tuple"
+        ]
+    },
+    {
+        "question": "What does `break` do in a loop?",
+        "answer": "B. Exits loop",
+        "choices": [
+            "A. Skips iteration",
+            "B. Exits loop",
+            "C. Repeats loop",
+            "D. Does nothing"
+        ]
+    },
+    {
+        "question": "What is a virtual environment?",
+        "answer": "An isolated Python environment to manage dependencies per project."
+    },
+    {
+        "question": "What is slicing in Python?",
+        "answer": "Extracting a portion of a sequence using [start:stop:step]."
+    },
+    {
+        "question": "What does type([]) return?",
+        "answer": "C. <class 'list'>",
+        "choices": [
+            "A. <list>",
+            "B. list",
+            "C. <class 'list'>",
+            "D. []"
+        ]
+    },
+    {
+        "question": "Which operator is used for exponentiation?",
+        "answer": "B. **",
+        "choices": [
+            "A. ^",
+            "B. **",
+            "C. *",
+            "D. //"
+        ]
+    },
+    {
+        "question": "What is a Python module?",
+        "answer": "A Python file containing definitions and statements."
+    },
+    {
+        "question": "What is duck typing in Python?",
+        "answer": "If it walks like a duck and quacks like a duck, it's a duck\u2014type checking by behavior."
+    },
+    {
+        "question": "What is the result of bool('False')?",
+        "answer": "C. True",
+        "choices": [
+            "A. False",
+            "B. Error",
+            "C. True",
+            "D. None"
+        ]
+    },
+    {
+        "question": "What is list comprehension?",
+        "answer": "A concise way to create a list using a single line of code."
+    },
+    {
+        "question": "What is the difference between `is` and `==`?",
+        "answer": "`is` checks identity, `==` checks value equality."
+    },
+    {
+        "question": "What is a special constant representing the absence of value?",
+        "answer": "C. None",
+        "choices": [
+            "A. 0",
+            "B. null",
+            "C. None",
+            "D. undefined"
+        ]
+    },
+    {
+        "question": "Which method adds an item to a list?",
+        "answer": "C. append()",
+        "choices": [
+            "A. add()",
+            "B. insert()",
+            "C. append()",
+            "D. extend()"
+        ]
+    },
+    {
+        "question": "What is the GIL in Python?",
+        "answer": "Global Interpreter Lock that prevents multiple native threads from executing Python bytecodes at once."
+    },
+    {
+        "question": "What are Python's built-in data types?",
+        "answer": "int, float, str, bool, list, tuple, set, dict, etc."
+    }
+]
