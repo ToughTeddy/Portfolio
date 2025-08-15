@@ -65,7 +65,7 @@ payload = {
             "shareMediaCategory": "NONE",
         }
     },
-    "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
+    "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "CONNECTIONS"},
 }
 
 resp = requests.post(LINKEDIN_UGC_URL, headers=HEADERS, json=payload)
