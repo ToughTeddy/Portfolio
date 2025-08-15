@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from typing import Dict, List
 from zoneinfo import ZoneInfo
 
@@ -20,7 +20,12 @@ def _format_question(entry: Dict) -> str:
 
 def build_daily_message(questions_path: str, *, offset_days: int = 0, tz: str = "UTC") -> str:
     questions = _load_questions(questions_path)
-    base_date = datetime.now(ZoneInfo(tz)).date()
+    try:
+        base_date = datetime.now(ZoneInfo(tz)).date()
+    except Exception:
+        # Fallback if tz invalid on host
+        base_date = datetime.utcnow().date()
+
     target_date = base_date + timedelta(days=offset_days)
 
     n = len(questions)

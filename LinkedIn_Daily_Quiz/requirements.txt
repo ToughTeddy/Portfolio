@@ -6,4 +6,4 @@ azure-functions>=1.20.0
 azure-storage-blob>=12.20.0
 azure-core>=1.30.0
 requests>=2.31.0
-tzdata>=25.2
+tzdata>=2024.1
