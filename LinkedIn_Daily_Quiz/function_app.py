@@ -4,29 +4,31 @@ import tempfile
 
 import azure.functions as func
 
+LINKEDIN_UGC_URL = "https://api.linkedin.com/v2/ugcPosts"
+REQUEST_TIMEOUT = 15  # seconds
+MAX_RETRIES = 3
+RETRY_BACKOFF_BASE = 2
+
+CONTAINER = "quizdata"
+BLOB_NAME = "questions.json"
+
 app = func.FunctionApp()
 
 # ---------- Config / validation ----------
 REQUIRED_ENVS = ["ACCESS_TOKEN", "PERSON_URN", "STORAGE_CONNECTION_STRING"]
 
-def _validate_config() -> dict:
-    cfg = {
-        "ACCESS_TOKEN": os.getenv("ACCESS_TOKEN", ""),
-        "PERSON_URN": os.getenv("PERSON_URN", ""),
-        "STORAGE_CONN": os.getenv("STORAGE_CONNECTION_STRING", ""),
-        "CONTAINER": os.getenv("CONTAINER_NAME", "quizdata"),
-        "BLOB_NAME": os.getenv("BLOB_NAME", "questions.json"),
-        "QUIZ_TZ": os.getenv("QUIZ_TZ", "America/Phoenix"),
-        "OFFSET_DAYS": int(os.getenv("QUIZ_OFFSET_DAYS", "0")),
-        "VISIBILITY": os.getenv("QUIZ_VISIBILITY", "CONNECTIONS"),
-    }
-
-    missing = [k for k in REQUIRED_ENVS if not cfg.get(k)]
+def _validate_config(access_token: str, person_urn: str, storage_conn: str) -> None:
+    missing = []
+    if not access_token:
+        missing.append("ACCESS_TOKEN")
+    if not person_urn:
+        missing.append("PERSON_URN")
+    if not storage_conn:
+        missing.append("STORAGE_CONNECTION_STRING")
     if missing:
         raise RuntimeError(f"Missing required app settings: {', '.join(missing)}")
-    if not cfg["PERSON_URN"].startswith("urn:li:person:"):
+    if not person_urn.startswith("urn:li:person:"):
         raise RuntimeError("PERSON_URN must start with 'urn:li:person:'")
-    return cfg
 
 # ---------- Storage helper ----------
 def _download_questions_to_tmp(storage_conn: str, container: str, blob_name: str) -> str:
@@ -55,25 +57,27 @@ def post_daily_quiz(mytimer: func.TimerRequest):
         logging.warning("⏰ Timer is running late.")
 
     try:
-        cfg = _validate_config()
+        # Read individual env vars
+        # Required envs (read inside the function for safe indexing)
+        ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "")
+        PERSON_URN = os.getenv("PERSON_URN", "")
+        STORAGE_CONN = os.getenv("STORAGE_CONNECTION_STRING", "")
 
-        # Local imports keep startup resilient
+        QUIZ_TZ = os.getenv("QUIZ_TZ", "America/Phoenix")
+        OFFSET_DAYS = int(os.getenv("QUIZ_OFFSET_DAYS", "0"))
+        VISIBILITY = os.getenv("QUIZ_VISIBILITY", "CONNECTIONS")
+
+        # Validate required ones
+        _validate_config(ACCESS_TOKEN, PERSON_URN, STORAGE_CONN)
+
+        # Local imports for startup
         from new_post import build_daily_message
         from send_it import post_text_update
 
-        questions_path = _download_questions_to_tmp(
-            cfg["STORAGE_CONN"], cfg["CONTAINER"], cfg["BLOB_NAME"]
-        )
-        message = build_daily_message(
-            questions_path, offset_days=cfg["OFFSET_DAYS"], tz=cfg["QUIZ_TZ"]
-        )
+        questions_path = _download_questions_to_tmp(STORAGE_CONN, CONTAINER, BLOB_NAME)
+        message = build_daily_message(questions_path, offset_days=OFFSET_DAYS, tz=QUIZ_TZ)
 
-        resp = post_text_update(
-            cfg["ACCESS_TOKEN"],
-            cfg["PERSON_URN"],
-            message,
-            visibility=cfg["VISIBILITY"],
-        )
+        resp = post_text_update(ACCESS_TOKEN, PERSON_URN, message, visibility=VISIBILITY)
 
         status = getattr(resp, "status_code", None)
         body_preview = getattr(resp, "text", "")[:500]
@@ -84,9 +88,3 @@ def post_daily_quiz(mytimer: func.TimerRequest):
 
     except Exception as e:
         logging.exception("🚨 post_daily_quiz failed: %s", e)
-
-# ---------- Simple health check ----------
-@app.function_name(name="ping")
-@app.route(route="ping", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
-def ping(req: func.HttpRequest):
-    return func.HttpResponse("ok", status_code=200)
