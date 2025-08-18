@@ -38,7 +38,6 @@ def _split_question_and_code(q: str) -> tuple[str, str | None]:
     Try to separate a natural-language question from an embedded code block.
     """
     lines = q.strip().splitlines()
-    # find first line that looks like code
     for i, ln in enumerate(lines):
         l = ln.lstrip()
         if i > 0 and (l.startswith("def ") or l.startswith("@") or l.startswith("class ") or l.startswith("import ")):

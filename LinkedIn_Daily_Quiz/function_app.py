@@ -1,52 +1,26 @@
 import logging
 import os
-import tempfile
 
 import azure.functions as func
-
-LINKEDIN_UGC_URL = "https://api.linkedin.com/v2/ugcPosts"
-REQUEST_TIMEOUT = 15  # seconds
-MAX_RETRIES = 3
-RETRY_BACKOFF_BASE = 2
-
-CONTAINER = "quizdata"
-BLOB_NAME = "questions.json"
 
 app = func.FunctionApp()
 
 # ---------- Config / validation ----------
-REQUIRED_ENVS = ["ACCESS_TOKEN", "PERSON_URN", "STORAGE_CONNECTION_STRING"]
+REQUIRED_ENVS = ["ACCESS_TOKEN", "PERSON_URN"]
 
-def _validate_config(access_token: str, person_urn: str, storage_conn: str) -> None:
+def _validate_config(access_token: str, person_urn: str, openai_key: str | None) -> None:
     missing = []
     if not access_token:
         missing.append("ACCESS_TOKEN")
     if not person_urn:
         missing.append("PERSON_URN")
-    if not storage_conn:
-        missing.append("STORAGE_CONNECTION_STRING")
     if missing:
         raise RuntimeError(f"Missing required app settings: {', '.join(missing)}")
     if not person_urn.startswith("urn:li:person:"):
         raise RuntimeError("PERSON_URN must start with 'urn:li:person:'")
-
-# ---------- Storage helper ----------
-def _download_questions_to_tmp(storage_conn: str, container: str, blob_name: str) -> str:
-    # Import here so missing packages don't break cold start/indexing
-    from azure.storage.blob import BlobServiceClient
-    from azure.core.exceptions import AzureError
-
-    try:
-        svc = BlobServiceClient.from_connection_string(storage_conn)
-        blob = svc.get_blob_client(container=container, blob=blob_name)
-        data = blob.download_blob().readall()
-    except AzureError as e:
-        raise RuntimeError(f"Failed to download blob '{container}/{blob_name}': {e}") from e
-
-    tmp_path = os.path.join(tempfile.gettempdir(), "questions.json")
-    with open(tmp_path, "wb") as f:
-        f.write(data)
-    return tmp_path
+    # OpenAI key is required for generating the quiz
+    if not openai_key:
+        raise RuntimeError("OpenAI API key missing: set OPENAI_API_KEY or OPENAI_KEY")
 
 # ---------- Timer trigger ----------
 @app.function_name(name="post_daily_quiz")
@@ -57,32 +31,42 @@ def post_daily_quiz(mytimer: func.TimerRequest):
         logging.warning("⏰ Timer is running late.")
 
     try:
-        # Read individual env vars
-        # Required envs (read inside the function for safe indexing)
+        # --- Env / settings ---
         ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "")
         PERSON_URN = os.getenv("PERSON_URN", "")
-        STORAGE_CONN = os.getenv("STORAGE_CONNECTION_STRING", "")
+        OPENAI_KEY = os.getenv("OPENAI_KEY")
 
         QUIZ_TZ = os.getenv("QUIZ_TZ", "America/Phoenix")
+        QUIZ_DIFFICULTY = os.getenv("QUIZ_DIFFICULTY", "beginner")
         OFFSET_DAYS = int(os.getenv("QUIZ_OFFSET_DAYS", "0"))
         VISIBILITY = os.getenv("QUIZ_VISIBILITY", "CONNECTIONS")
 
-        # Validate required ones
-        _validate_config(ACCESS_TOKEN, PERSON_URN, STORAGE_CONN)
+        _validate_config(ACCESS_TOKEN, PERSON_URN, OPENAI_KEY)
 
-        # Local imports for startup
         from new_post import build_daily_message
         from send_it import post_text_update
 
-        questions_path = _download_questions_to_tmp(STORAGE_CONN, CONTAINER, BLOB_NAME)
-        message = build_daily_message(questions_path, offset_days=OFFSET_DAYS, tz=QUIZ_TZ)
+        # --- Build today's message ---
+        message = build_daily_message(
+            tz=QUIZ_TZ,
+            difficulty=QUIZ_DIFFICULTY,
+            offset_days=OFFSET_DAYS,
+            api_key=OPENAI_KEY,
+        )
 
+        # --- Post it ---
         resp = post_text_update(ACCESS_TOKEN, PERSON_URN, message, visibility=VISIBILITY)
 
         status = getattr(resp, "status_code", None)
         body_preview = getattr(resp, "text", "")[:500]
+
         if status and 200 <= status < 300:
-            logging.info("🎉 LinkedIn post succeeded (%s). Preview: %s", status, body_preview)
+            try:
+                urn = resp.json().get("id")
+                post_url = f"https://www.linkedin.com/feed/update/{urn}" if urn else "(no id in response)"
+                logging.info("🎉 LinkedIn post succeeded (%s). URL: %s | Body: %s", status, post_url, body_preview)
+            except Exception as e:
+                logging.info("🎉 LinkedIn post succeeded (%s). Body: %s (URL parse failed: %s)", status, body_preview, e)
         else:
             logging.error("❌ LinkedIn post failed (%s). Body: %s", status, body_preview)
 
