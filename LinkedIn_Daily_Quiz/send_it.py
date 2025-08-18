@@ -7,7 +7,7 @@ import requests
 LINKEDIN_UGC_URL = "https://api.linkedin.com/v2/ugcPosts"
 REQUEST_TIMEOUT = 15
 MAX_RETRIES = 3
-BACKOFF_BASE = 2  # 2, 4, 8...
+BACKOFF_BASE = 2
 
 def _retryable(status: int) -> bool:
     return status in (408, 429, 500, 502, 503, 504)
@@ -61,7 +61,7 @@ def post_text_update(access_token: str, person_urn: str, message: str, visibilit
             if _retryable(resp.status_code) and attempt < MAX_RETRIES:
                 _sleep_retry(attempt, resp)
                 continue
-            return resp  # let caller log failure
+            return resp
 
         except requests.Timeout as e:
             last_exc = e
