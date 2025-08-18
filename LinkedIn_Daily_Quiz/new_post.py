@@ -1,48 +1,47 @@
+import os
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
 
-def _load_questions(path: str) -> List[Dict]:
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    if not isinstance(data, list) or not data:
-        raise RuntimeError("questions.json must be a non-empty JSON array")
-    return data
+from openai import OpenAI
 
-def _format_question(entry: Dict) -> str:
-    q = str(entry["question"]).strip()
-    choices = entry.get("choices")
-    if choices:
-        choice_lines = "\n".join(f"- {str(c)}" for c in choices)
-        return f"{q}\n{choice_lines}"
-    return q
+OPENAI_MODEL = "gpt-5"
 
-def build_daily_message(questions_path: str, *, offset_days: int = 0, tz: str = "UTC") -> str:
-    questions = _load_questions(questions_path)
-    try:
-        base_date = datetime.now(ZoneInfo(tz)).date()
-    except Exception:
-        # Fallback if tz invalid on host
-        base_date = datetime.utcnow().date()
+DEFAULT_TOPICS = [
+    "Python basics",
+    "Control flow",
+    "Functions",
+    "Data structures",
+    "OOP in Python",
+    "Modules & packages",
+    "File I/O",
+    "Exceptions",
+    "Iterators & generators",
+    "Comprehensions",
+    "Decorators",
+    "Typing & dataclasses",
+    "Standard library (itertools, collections, pathlib)",
+    "Asyncio",
+    "Performance & Big-O (Python-flavored)"
+]
 
-    target_date = base_date + timedelta(days=offset_days)
+client = OpenAI()
 
-    n = len(questions)
-    today_idx = target_date.toordinal() % n
-    yesterday_idx = (today_idx - 1) % n
+def _topic_for_day():
+    pass
 
-    today_q = questions[today_idx]
-    yesterday_q = questions[yesterday_idx]
+def _extract_response():
+    pass
 
-    message = (
-        "📌 Daily Python Quiz:\n\n"
-        "🧠 Yesterday's Question:\n"
-        f"{_format_question(yesterday_q)}\n\n"
-        "Yesterday's Answer:\n"
-        f"{yesterday_q.get('answer', '—')}\n\n"
-        "💡 Today's Question:\n"
-        f"{_format_question(today_q)}\n\n"
-        "Spotted an issue or want to contribute a question? Reply or DM me!"
-    )
-    return message
+def _generate_quiz_question():
+    pass
+
+def _format_question():
+    pass
+
+def _question_for_date():
+    pass
+
+def main():
+    pass
