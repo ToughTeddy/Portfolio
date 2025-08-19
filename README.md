@@ -5,11 +5,10 @@ A few small projects that showcase my Python skills, automation, and cloud deplo
 ## Projects
 
 ### ISS_Tracker
-Checks once a minute whether the International Space Station is within ±5° lat/long of my location **and** it’s dark outside. If both are true, it emails me an alert.
+Checks once a minute whether the International Space Station is within ±5° lat/long of my location **and** it’s dark outside. If both are true, it emails you an alert.
 
-- **Highlights:** API polling, time/zonal logic (sunrise/sunset), email notifications
+- **Highlights:** API integration, time/zonal logic (sunrise/sunset), email notifications, GUI app or azure automated script, secure config via app settings
 - **Tech:** Python, `requests`, `smtplib`, `datetime`
-- **Run it:**
 
 ---
 
