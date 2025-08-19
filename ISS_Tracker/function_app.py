@@ -9,7 +9,7 @@ app = func.FunctionApp()
 
 
 @app.function_name(name="iss_tracker")
-@app.schedule(schedule="0 */5 * * * *", arg_name="mytimer", run_on_startup=False, use_monitor=True)
+@app.schedule(schedule="0 * * * * *", arg_name="mytimer", run_on_startup=False, use_monitor=True)
 def iss_tracker_timer(mytimer: func.TimerRequest) -> None:
     try:
         if mytimer and mytimer.past_due:
