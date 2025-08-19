@@ -1,0 +1,10 @@
+main.py
+.python_packages
+.venv/
+env/
+__pycache__/
+*.pyc
+.git/
+*.log
+my_info.py
+local.settings.json
