@@ -1,187 +1,176 @@
-from typing import List, Dict, Tuple, Optional
-from collections import deque
-
-RankPairs = List[Tuple[int, str]]
-PrefsDict  = Dict[str, RankPairs]
-INF = 10**9
 
 class ProposeReject:
     """
-    label:
-      - "one_one"  : group1 cap = 1, group2 cap = 1
-      - "many_one" : group1 cap = 1, group2 cap from cap_g2 (default 1 per node)
-    """
-    def __init__(self, group1: PrefsDict, group2: PrefsDict, label: str = "one_one",
-                 strict: bool = False, *, cap_g2: Optional[Dict[str, int]] = None):
-        self.label = str(label)
+            Stable Matching Algo. where group1 proposes to group2.
+            Supports 1-to-1 matching or many-to-1 matching (group1 capacity >= 1, group2 capacity = 1).
 
-        # ---- names/sets ----
-        self.group1_names = list(group1.keys())
-        self.group2_names = list(group2.keys())
-        self.S1, self.S2 = set(self.group1_names), set(self.group2_names)
+            Args:
+                group1 : list["str"]
+                group2 : list["str"]
+                pref1 : list[list[int]]
+                pref2 : list[list[int]]
+                one_or_many : int
 
-        # ---- prefs: rank-pairs -> tiers (ties allowed) ----
-        self.group1_tiers = {
-            p: self._tiers_from_rank_pairs(group1[p], allowed=self.S2, owner=p, strict=strict)
-            for p in self.group1_names
-        }
-        self.group2_tiers = {
-            b: self._tiers_from_rank_pairs(group2[b], allowed=self.S1, owner=b, strict=strict)
-            for b in self.group2_names
-        }
+            Raises:
+                AssertionError : If pref1 / pref2 row counts don't match group sizes.
+                ValueError : If preference row contains out of range int or mixed/invalid indexing.
 
-        # ---- rank maps (smaller rank = better) ----
-        self.group1_rank_of_group2 = {
-            p: self._rank_map_from_tiers(self.group1_tiers[p]) for p in self.group1_names
-        }
-        self.group2_rank_of_group1 = {
-            b: self._rank_map_from_tiers(self.group2_tiers[b]) for b in self.group2_names
-        }
+            Attributes:
+                size1 (int) : Size of group1.
+                size2 (int) : Size of group2.
+                cap_g1 (list[int]) : Capacity of group1 members. All = one_or_many
+                cap_g2 (list[int]) : Capacity of group2 members. All = 1
+                pref1_idx (list[list[int]]) : Normalized 0-based preferences of group1 over group2.
+                pref2_idx (list[list[int]]) : Normalized 0-based preferences of group2 over group1.
+                match_g1 (list[list[int]]) : For each group1 index, list of matched group2.
+                match_g2 (list[int]) : For each group2 index, matched group1.
+                matches_list (list[list[str]]) : Final matches as converted to names.
+                    each row = ["group1_name", "group2_name1", "group2_name2", ...] (group1 name first)
+                matches_list_idx (list[list[int]]) : Same as indices.
 
-        # ---- capacities (only one_one or many_one) ----
-        if self.label == "one_one":
-            self.cap_g2 = {b: 1 for b in self.group2_names}
-        elif self.label == "many_one":
-            self.cap_g2 = {b: (cap_g2[b] if (cap_g2 and b in cap_g2) else 1) for b in self.group2_names}
-        else:
-            raise ValueError("label must be 'one_one' or 'many_one'")
+            Example:
+                G1 = ["Microsoft", "Amazon"]
+                G2 = ["Mary", "Kevin", "John"]
+                P1 = [[2, 1, 3], [1, 2, 3]]
+                P2 = [[1, 2], [2, 1], [1, 2]]
+                pr = ProposeReject(G1, G2, P1, P2, one_or_many=2)
+                print(pr.matches_list)
 
-        # group1 capacity is always 1 in both modes
-        self.cap_g1 = {p: 1 for p in self.group1_names}
+                output:
+                [['Microsoft', 'Kevin', 'Mary'], ['Amazon', 'John']]
+            """
 
-        # ---- state: matches (lists for uniformity), free flags, proposal pointers ----
-        self.match_g1: Dict[str, List[str]] = {p: [] for p in self.group1_names}
-        self.match_g2: Dict[str, List[str]] = {b: [] for b in self.group2_names}
-        self.free_g1: Dict[str, bool] = {p: True for p in self.group1_names}
-        self.free_g2: Dict[str, bool] = {b: True for b in self.group2_names}
+    def __init__(self, group1 : list, group2 : list, pref1: list, pref2 : list,
+                 one_or_many : int = 1):
+        """Constructor. See class docstring for full parameter details."""
+        self.group1, self.group2 = list(group1), list(group2)
+        self.pref1, self.pref2 = pref1, pref2
+        self.size1, self.size2 = len(group1), len(group2)
 
-        self._ri: Dict[str, int] = {p: 0 for p in self.group1_names}  # rank tier index per g1
-        self._ti: Dict[str, int] = {p: 0 for p in self.group1_names}  # index inside current tier
+        cap = int(one_or_many) if one_or_many >= 1 else 1
+        self.cap_g1 = [cap] * self.size1
+        self.cap_g2 = [1] * self.size2
 
-    # ---------- preference helpers ----------
+        self.free1 = [True] * self.size1
+        self.idx_next = [0] * self.size1
 
-    def _tiers_from_rank_pairs(self, pairs: RankPairs, *, allowed: set, owner: str, strict: bool) -> List[List[str]]:
-        by_rank: Dict[int, List[str]] = {}
-        seen: set = set()
-        for r, name in pairs:
-            if not isinstance(r, int) or r < 1:
-                raise ValueError(f"prefs for {owner!r}: rank must be positive int, got {r!r}")
-            if name not in allowed:
-                raise ValueError(f"prefs for {owner!r}: unknown name {name!r}")
-            if name in seen:
-                raise ValueError(f"prefs for {owner!r}: duplicate entry for {name!r}")
-            seen.add(name)
-            by_rank.setdefault(r, []).append(name)
+        self.pref1_idx = self._base_normalize(
+            self.pref1, max_id=self.size2, owner="pref1 (group1→group2)"
+        )
+        self.pref2_idx = self._base_normalize(
+            self.pref2, max_id=self.size1, owner="pref2 (group2→group1)"
+        )
 
-        if strict and seen != allowed:
-            missing = sorted(allowed - seen)
-            extra   = sorted(seen - allowed)
-            msg = f"prefs for {owner!r}: strict mode requires ranking all opponents exactly once"
-            if missing: msg += f"; missing={missing}"
-            if extra:   msg += f"; extras={extra}"
-            raise ValueError(msg)
+        assert len(self.pref1_idx) == self.size1, "pref1 must have one list per member of group1"
+        assert len(self.pref2_idx) == self.size2, "pref2 must have one list per member of group2"
 
-        return [list(by_rank[r]) for r in sorted(by_rank)]
+        self.match_g1 = [[] for _ in range(self.size1)]
+        self.match_g2 = [-1] * self.size2
 
-    @staticmethod
-    def _rank_map_from_tiers(tiers: List[List[str]]) -> Dict[str, int]:
-        ranks: Dict[str, int] = {}
-        for r, tier in enumerate(tiers, start=1):
-            for name in tier:
-                ranks[name] = r
-        return ranks
+        self.rank_g2_over_g1 = [dict() for _ in range(self.size2)]
+        for j, lst in enumerate(self.pref2_idx):
+            for pos, g1_idx in enumerate(lst, start=1):
+                self.rank_g2_over_g1[j][g1_idx] = pos
 
-    # ---------- utility ----------
+        self.rank_g1_over_g2 = [dict() for _ in range(self.size1)]
+        for i, lst in enumerate(self.pref1_idx):
+            for pos, g2_idx in enumerate(lst, start=1):
+                self.rank_g1_over_g2[i][g2_idx] = pos
 
-    def _has_capacity_g1(self, p: str) -> bool:
-        return len(self.match_g1[p]) < self.cap_g1[p]
+        while True:
+            step = self._next_match()
+            if step is None:
+                break
+            i, j = step
+            self._g2_pref_check(i, j)
 
-    def _has_capacity_g2(self, b: str) -> bool:
-        return len(self.match_g2[b]) < self.cap_g2[b]
+        self.matches_list_idx = [[i] + list(self.match_g1[i]) for i in range(self.size1)]
+        self.matches_list = [
+            [self.group1[i]] + [self.group2[j] for j in self.match_g1[i]]
+            for i in range(self.size1)
+        ]
 
-    def _rank_at_g2(self, b: str, p: str) -> int:
-        return self.group2_rank_of_group1[b].get(p, INF)  # unranked => worst
+    def _base_normalize(self, prefs: list, *, max_id: int, owner: str) -> list[list[int]]:
+        norm: list[list[int]] = []
 
-    def _worst_current_at_g2(self, b: str) -> Tuple[str, int]:
-        worst_p = None
-        worst_r = -1
-        for p in self.match_g2[b]:
-            r = self._rank_at_g2(b, p)
-            if r > worst_r:
-                worst_p, worst_r = p, r
-        return worst_p, worst_r
+        for r, row in enumerate(prefs):
+            if not row:
+                norm.append([])
+                continue
+            mn, mx = min(row), max(row)
+            ok0 = (0 <= mn) and (mx <= max_id - 1)
+            ok1 = (1 <= mn) and (mx <= max_id)
 
-    def _next_target(self, p: str) -> Optional[str]:
-        tiers = self.group1_tiers[p]
-        ri, ti = self._ri[p], self._ti[p]
-        while ri < len(tiers):
-            tier = tiers[ri]
-            if ti < len(tier):
-                b = tier[ti]
-                self._ti[p] += 1
-                return b
-            ri += 1
-            self._ri[p] = ri
-            self._ti[p] = 0
+            if ok0 and not ok1:
+                base = 0
+            elif ok1 and not ok0:
+                base = 1
+            elif ok0 and ok1:
+                if 0 in row:
+                    base = 0
+                elif max_id in row:
+                    base = 1
+                else:
+                    base = 1
+            else:
+                raise ValueError(
+                    f"{owner} row {r}: IDs must be 0..{max_id - 1} (0-based) or 1..{max_id} (1-based). "
+                    f"Received min={mn}, max={mx}.")
+            if base == 1:
+                conv = [v - 1 for v in row]
+                if not conv or min(conv) < 0 or max(conv) > max_id - 1:
+                    raise ValueError(f"{owner} row {r}: invalid 1-based IDs after conversion.")
+                norm.append(conv)
+            else:
+                norm.append(list(row))
+        return norm
+
+    def _next_match(self):
+        for i in range(self.size1):
+            self.free1[i] = (len(self.match_g1[i]) < self.cap_g1[i])
+
+            if not self.free1[i]:
+                continue
+
+            if self.idx_next[i] >= len(self.pref1_idx[i]):
+                continue
+
+            j = self.pref1_idx[i][self.idx_next[i]]
+            self.idx_next[i] += 1
+            return i, j
+
         return None
 
-    # ---------- matching (group1 proposes) ----------
+    def _g2_pref_check(self, i: int, j: int) -> None:
+        cur = self.match_g2[j]
+        if cur == -1:
+            self._match(i, j)
+            return
 
-    def match(self) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
-        """
-        Gale–Shapley style with capacities constrained to one_one or many_one.
-        Tie policy at group2: keep current on equal rank (weakly stable).
-        """
-        # reset state in case of re-run
-        self.match_g1 = {p: [] for p in self.group1_names}
-        self.match_g2 = {b: [] for b in self.group2_names}
-        self.free_g1  = {p: True for p in self.group1_names}
-        self.free_g2  = {b: True for b in self.group2_names}
-        self._ri = {p: 0 for p in self.group1_names}
-        self._ti = {p: 0 for p in self.group1_names}
+        r_new = self.rank_g2_over_g1[j].get(i, float("inf"))
+        r_cur = self.rank_g2_over_g1[j].get(cur, float("inf"))
 
-        Q = deque([p for p in self.group1_names if self._has_capacity_g1(p)])
+        if r_new < r_cur:
+            self._match_change(i, j)
+        else:
+            pass
 
-        while Q:
-            p = Q.popleft()
-            if not self._has_capacity_g1(p):
-                continue
-            b = self._next_target(p)
-            if b is None:
-                continue  # no one left to propose to
+    def _match(self, i: int, j: int) -> None:
+        self.match_g2[j] = i
 
-            if self._has_capacity_g2(b):
-                # accept
-                self.match_g1[p].append(b)
-                self.match_g2[b].append(p)
-                self.free_g1[p] = not self._has_capacity_g1(p)
-                self.free_g2[b] = not self._has_capacity_g2(b)
-                if self._has_capacity_g1(p):
-                    Q.append(p)
-            else:
-                # b full: see if p beats b's worst current match
-                worst_p, worst_r = self._worst_current_at_g2(b)
-                r_new = self._rank_at_g2(b, p)
-                if r_new < worst_r:
-                    # replace worst with p
-                    self.match_g2[b].remove(worst_p)
-                    self.match_g1[worst_p].remove(b)
-                    self.free_g1[worst_p] = True  # dumped; can propose again
-                    self.match_g2[b].append(p)
-                    self.match_g1[p].append(b)
-                    self.free_g1[p] = not self._has_capacity_g1(p)
-                    self.free_g2[b] = not self._has_capacity_g2(b)
-                    if self._has_capacity_g1(worst_p):
-                        Q.append(worst_p)
-                    if self._has_capacity_g1(p):
-                        Q.append(p)
-                elif r_new == worst_r:
-                    # tie with worst: keep current set; p tries next
-                    Q.append(p)
-                else:
-                    # worse: p tries next
-                    Q.append(p)
+        if j not in self.match_g1[i]:
+            self.match_g1[i].append(j)
 
-        return self.match_g1, self.match_g2
+        self.free1[i] = (len(self.match_g1[i]) < self.cap_g1[i])
 
+    def _match_change(self, i: int, j: int) -> None:
+        old_i = self.match_g2[j]
+        if old_i != -1:
+            if j in self.match_g1[old_i]:
+                self.match_g1[old_i].remove(j)
+            self.free1[old_i] = (len(self.match_g1[old_i]) < self.cap_g1[old_i])
+        self.match_g2[j] = i
+        if j not in self.match_g1[i]:
+            self.match_g1[i].append(j)
+        self.free1[i] = (len(self.match_g1[i]) < self.cap_g1[i])
 
