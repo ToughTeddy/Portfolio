@@ -1,4 +1,4 @@
-from propose_reject import ProposeReject
+from ProposeReject.propose_reject import ProposeReject
 
 G1_T1 = ["Microsoft", "Amazon", "Apple", "Sandia", "Blizzard"]
 G2_T1 = ["Mary", "Kevin", "John", "Liz", "Mike"]
