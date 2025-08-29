@@ -9,6 +9,13 @@ app = func.FunctionApp()
 REQUIRED_ENVS = ["ACCESS_TOKEN", "PERSON_URN"]
 
 def _validate_config(access_token: str, person_urn: str, openai_key: str | None) -> None:
+    """
+        Check that the required environment values are set and valid.
+        - ACCESS_TOKEN and PERSON_URN must exist
+        - PERSON_URN must start with 'urn:li:person:'
+        - An OpenAI API key must be provided
+        Raises RuntimeError if something is missing or invalid.
+    """
     missing = []
     if not access_token:
         missing.append("ACCESS_TOKEN")
@@ -26,35 +33,46 @@ def _validate_config(access_token: str, person_urn: str, openai_key: str | None)
 @app.function_name(name="post_daily_quiz")
 @app.schedule(schedule="0 0 14 * * *", arg_name="mytimer", run_on_startup=False, use_monitor=True)
 def post_daily_quiz(mytimer: func.TimerRequest):
+    """
+        Azure Function that runs every day at 2:00 PM UTC.
+        1. Checks environment variables for configuration
+        2. Uses OpenAI to generate today’s quiz question
+        3. Appends the new question to storage
+        4. Builds a LinkedIn post with yesterday’s answer and today’s question
+        5. Posts the message to LinkedIn using the API
+        Logs whether the post succeeded or failed.
+    """
     logging.info("✅ post_daily_quiz triggered")
     if mytimer and mytimer.past_due:
         logging.warning("⏰ Timer is running late.")
 
     try:
-        # --- Env / settings ---
+        # Pull settings from environment variables
         ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "")
         PERSON_URN = os.getenv("PERSON_URN", "")
-        OPENAI_KEY = os.getenv("OPENAI_KEY")
+        OPENAI_KEY = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
 
         QUIZ_TZ = os.getenv("QUIZ_TZ", "America/Phoenix")
         QUIZ_DIFFICULTY = os.getenv("QUIZ_DIFFICULTY", "beginner")
         OFFSET_DAYS = int(os.getenv("QUIZ_OFFSET_DAYS", "0"))
         VISIBILITY = os.getenv("QUIZ_VISIBILITY", "CONNECTIONS")
+        QUIZ_OPENAI_MODEL = os.getenv("QUIZ_OPENAI_MODEL", "gpt-5")
 
         _validate_config(ACCESS_TOKEN, PERSON_URN, OPENAI_KEY)
 
         from new_post import build_daily_message
         from send_it import post_text_update
 
-        # --- Build today's message ---
+        # Build the daily quiz post (yesterday’s answer + today’s question)
         message = build_daily_message(
             tz=QUIZ_TZ,
             difficulty=QUIZ_DIFFICULTY,
             offset_days=OFFSET_DAYS,
             api_key=OPENAI_KEY,
+            model=QUIZ_OPENAI_MODEL,
         )
 
-        # --- Post it ---
+        # Post the message to LinkedIn
         resp = post_text_update(ACCESS_TOKEN, PERSON_URN, message, visibility=VISIBILITY)
 
         status = getattr(resp, "status_code", None)
